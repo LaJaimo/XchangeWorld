@@ -1,0 +1,17 @@
+{
+  "rules": {
+    "activeSession": {
+      ".read": true,
+      ".write": true
+    },
+    "responses": {
+      "$sessionId": {
+        ".read": true,
+        ".write": true,
+        "$responseId": {
+          ".validate": "newData.hasChildren(['text', 'ts']) && newData.child('text').isString() && newData.child('text').val().length <= 80"
+        }
+      }
+    }
+  }
+}
