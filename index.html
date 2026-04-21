@@ -1,16 +1,245 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>XChange LATAM — Live</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/main.jsx"></script>
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XChange LATAM — Live</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#060810;--bg2:#0d1120;--accent:#00C2FF;--accent2:#FF3CAC;--font-display:'Bebas Neue',sans-serif;--font-body:'DM Sans',sans-serif;}
+body{background:var(--bg);color:#fff;font-family:var(--font-body);min-height:100vh;-webkit-font-smoothing:antialiased}
+#view-audience{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;background:radial-gradient(ellipse at 50% 0%,rgba(0,194,255,0.12) 0%,#060810 60%);}
+.card{width:100%;max-width:440px;background:rgba(13,17,32,0.95);border:1px solid rgba(0,194,255,0.25);border-radius:20px;padding:2.5rem 2rem;display:flex;flex-direction:column;gap:1.25rem;box-shadow:0 0 60px rgba(0,194,255,0.08);}
+.logo{font-family:var(--font-display);font-size:1.6rem;letter-spacing:.05em;text-align:center}
+.logo span{color:var(--accent)}
+.question{font-family:var(--font-display);font-size:1.7rem;letter-spacing:.02em;line-height:1.2;text-align:center}
+.hint{font-size:.85rem;color:rgba(255,255,255,.45);text-align:center}
+textarea{width:100%;background:rgba(0,194,255,0.06);border:1px solid rgba(0,194,255,0.3);border-radius:12px;color:#fff;font-size:1.1rem;font-family:var(--font-body);padding:1rem;resize:none;outline:none;line-height:1.5;}
+.char-count{font-size:.75rem;color:rgba(255,255,255,.3);text-align:right;margin-top:-.75rem}
+.btn-send{background:linear-gradient(135deg,#00C2FF,#0080FF);border:none;border-radius:12px;color:#fff;font-family:var(--font-body);font-size:1.05rem;font-weight:600;padding:.9rem;cursor:pointer;letter-spacing:.03em;transition:opacity .2s;}
+.btn-send:disabled{opacity:.4;cursor:not-allowed}
+.error-msg{font-size:.85rem;color:#FF3CAC;text-align:center}
+.success-box{display:flex;flex-direction:column;align-items:center;gap:1rem;padding:3rem 2rem;background:rgba(13,17,32,0.95);border:1px solid rgba(0,194,255,0.25);border-radius:20px;max-width:360px;width:100%;}
+.checkmark{width:64px;height:64px;border-radius:50%;background:rgba(0,194,255,0.15);border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.8rem;color:var(--accent);}
+.success-title{font-family:var(--font-display);font-size:2.5rem;letter-spacing:.05em}
+.success-sub{color:rgba(255,255,255,.55);font-size:1rem;text-align:center}
+#view-screen{width:100vw;height:100vh;background:#060810;display:flex;flex-direction:column;overflow:hidden;position:relative;}
+.grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(0,194,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,194,255,.04) 1px,transparent 1px);background-size:60px 60px;}
+.orb1{position:absolute;top:-20%;left:-10%;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(0,194,255,.12) 0%,transparent 70%)}
+.orb2{position:absolute;bottom:-20%;right:-10%;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(255,60,172,.10) 0%,transparent 70%)}
+.screen-header{display:flex;justify-content:space-between;align-items:center;padding:1.5rem 3rem;z-index:10;border-bottom:1px solid rgba(0,194,255,.1);}
+.screen-logo{font-family:var(--font-display);font-size:2rem;letter-spacing:.08em}
+.screen-logo span{color:var(--accent)}
+.counter{display:flex;align-items:baseline;gap:.5rem}
+.counter-num{font-family:var(--font-display);font-size:3rem;color:var(--accent);line-height:1}
+.counter-label{font-size:.9rem;color:rgba(255,255,255,.4);letter-spacing:.05em}
+.screen-question{padding:1.5rem 3rem .5rem;z-index:10}
+.screen-question p{font-family:var(--font-display);font-size:2.4rem;letter-spacing:.04em;opacity:.9}
+.cloud-area{flex:1;display:flex;align-items:center;justify-content:center;padding:1rem 2rem;z-index:10;overflow:hidden}
+.word-wrap{text-align:center;line-height:1.3;max-width:90vw}
+.word-item{display:inline-block;margin:6px 10px;cursor:default;line-height:1.1;font-family:var(--font-display);letter-spacing:.02em;opacity:0;transform:scale(.6) translateY(20px);transition:opacity .6s ease,transform .6s cubic-bezier(.34,1.56,.64,1);}
+.word-item.visible{opacity:1;transform:scale(1) translateY(0)}
+.waiting{display:flex;flex-direction:column;align-items:center;gap:1rem}
+.waiting-pulse{width:60px;height:60px;border-radius:50%;border:2px solid rgba(0,194,255,.4);animation:pulse 2s infinite}
+.waiting-text{font-family:var(--font-display);font-size:2.5rem;color:rgba(255,255,255,.3);letter-spacing:.05em}
+.waiting-hint{font-size:1rem;color:rgba(255,255,255,.2)}
+.screen-footer{display:flex;justify-content:space-between;align-items:center;padding:1rem 3rem;z-index:10;border-top:1px solid rgba(0,194,255,.1);}
+.footer-text{font-size:.85rem;color:rgba(255,255,255,.25);letter-spacing:.08em}
+.live-badge{display:flex;align-items:center;gap:8px;font-size:.8rem;letter-spacing:.15em;color:rgba(255,255,255,.4);font-weight:500}
+.live-dot{width:8px;height:8px;border-radius:50%;background:#00F0A0;box-shadow:0 0 8px #00F0A0;animation:blink 1.5s infinite}
+#view-admin{min-height:100vh;background:#060810;padding:2rem;font-family:var(--font-body)}
+.admin-wrap{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:2rem}
+.admin-logo{font-family:var(--font-display);font-size:2rem;letter-spacing:.05em}
+.admin-logo span{color:var(--accent)}
+.section{background:rgba(13,17,32,.9);border:1px solid rgba(0,194,255,.15);border-radius:16px;padding:1.5rem;display:flex;flex-direction:column;gap:1rem}
+.section-title{font-size:.75rem;letter-spacing:.12em;color:rgba(255,255,255,.35);text-transform:uppercase;font-weight:500}
+.url-row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+.url-code{font-family:monospace;font-size:.9rem;color:var(--accent);background:rgba(0,194,255,.08);padding:4px 10px;border-radius:6px}
+.url-badge{font-size:.75rem;background:rgba(0,194,255,.12);color:var(--accent);padding:3px 10px;border-radius:20px}
+.url-badge.pink{background:rgba(255,60,172,.15);color:#FF3CAC}
+.copy-btn{background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.5);border-radius:6px;padding:4px 12px;font-size:.8rem;cursor:pointer;font-family:var(--font-body)}
+.session-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
+.session-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1rem;display:flex;flex-direction:column;gap:.75rem;transition:border-color .2s}
+.session-card.active{border:1px solid rgba(0,194,255,.5);background:rgba(0,194,255,.05)}
+.session-top{display:flex;justify-content:space-between;align-items:center}
+.session-label{font-size:.85rem;font-weight:500}
+.session-count{font-size:.75rem;color:var(--accent);background:rgba(0,194,255,.1);padding:2px 8px;border-radius:10px}
+.session-q{font-size:.82rem;color:rgba(255,255,255,.4);line-height:1.4}
+.custom-input{background:rgba(0,194,255,.06);border:1px solid rgba(0,194,255,.2);border-radius:8px;color:#fff;font-family:var(--font-body);font-size:.9rem;padding:.5rem .75rem;outline:none;width:100%}
+.session-actions{display:flex;gap:.5rem}
+.btn-activate{flex:1;background:rgba(0,194,255,.12);border:1px solid rgba(0,194,255,.3);border-radius:8px;color:var(--accent);font-family:var(--font-body);font-size:.85rem;padding:.5rem;cursor:pointer;font-weight:500}
+.btn-activate.active{background:rgba(0,194,255,.25);border-color:var(--accent)}
+.btn-clear{background:rgba(255,60,172,.08);border:1px solid rgba(255,60,172,.2);border-radius:8px;color:#FF3CAC;font-family:var(--font-body);font-size:.85rem;padding:.5rem .75rem;cursor:pointer}
+.status-bar{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:rgba(0,240,160,.05);border:1px solid rgba(0,240,160,.15);border-radius:10px}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:.4}50%{transform:scale(1.15);opacity:.8}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+</style>
+</head>
+<body>
+<div id="view-audience" style="display:none">
+  <div id="audience-form" class="card">
+    <div class="logo">XChange <span>LATAM</span></div>
+    <p class="question" id="audience-question">¿Qué esperás llevarte de este evento?</p>
+    <p class="hint">Escribí una palabra o frase corta</p>
+    <textarea id="word-input" rows="3" maxlength="80" placeholder="Ej: Conexiones, Ideas nuevas, Crecer..."></textarea>
+    <div class="char-count"><span id="char-count">0</span>/80</div>
+    <p class="error-msg" id="error-msg" style="display:none"></p>
+    <button class="btn-send" id="btn-send" onclick="sendWord()">Enviar →</button>
+  </div>
+  <div id="audience-success" class="success-box" style="display:none">
+    <div class="checkmark">✓</div>
+    <p class="success-title">¡Gracias!</p>
+    <p class="success-sub">Tu respuesta ya está en pantalla.</p>
+    <div class="logo">XChange <span>LATAM</span></div>
+  </div>
+</div>
+<div id="view-screen" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="orb1"></div>
+  <div class="orb2"></div>
+  <div class="screen-header">
+    <div class="screen-logo">XChange <span>LATAM</span></div>
+    <div class="counter"><span class="counter-num" id="screen-count">0</span><span class="counter-label">respuestas</span></div>
+  </div>
+  <div class="screen-question"><p id="screen-question">¿Qué esperás llevarte de este evento?</p></div>
+  <div class="cloud-area">
+    <div id="waiting" class="waiting">
+      <div class="waiting-pulse"></div>
+      <p class="waiting-text">Esperando respuestas...</p>
+      <p class="waiting-hint">Escaneá el QR para participar</p>
+    </div>
+    <div id="word-wrap" class="word-wrap" style="display:none"></div>
+  </div>
+  <div class="screen-footer">
+    <span class="footer-text">xchange-world.vercel.app</span>
+    <div class="live-badge"><span class="live-dot"></span>LIVE</div>
+  </div>
+</div>
+<div id="view-admin" style="display:none">
+  <div class="admin-wrap">
+    <div class="admin-logo">XChange <span>LATAM</span> — Admin</div>
+    <div class="section">
+      <p class="section-title">URLs</p>
+      <div class="url-row"><span class="url-code" id="url-audience"></span><span class="url-badge">Audiencia (QR)</span><button class="copy-btn" onclick="copyURL('')">Copiar</button></div>
+      <div class="url-row"><span class="url-code" id="url-screen"></span><span class="url-badge pink">Pantalla proyectora</span><button class="copy-btn" onclick="copyURL('?screen')">Copiar</button></div>
+    </div>
+    <div class="section">
+      <p class="section-title">Sesión activa</p>
+      <div class="session-grid" id="session-grid"></div>
+    </div>
+    <div class="status-bar" id="status-bar" style="display:none">
+      <span class="live-dot"></span>
+      <span style="color:rgba(255,255,255,.6);font-size:.9rem">Sesión activa: <strong id="status-question" style="color:#fff"></strong></span>
+    </div>
+  </div>
+</div>
+<script>
+const firebaseConfig={apiKey:"AIzaSyD6vqj7fQjYPq1mNWwosp_UgSvcqzTAqFY",authDomain:"audiencia-cf043.firebaseapp.com",databaseURL:"https://audiencia-cf043-default-rtdb.firebaseio.com",projectId:"audiencia-cf043",storageBucket:"audiencia-cf043.firebasestorage.app",messagingSenderId:"104535870630",appId:"1:104535870630:web:0b38f292a01a1ef2873867"}
+firebase.initializeApp(firebaseConfig)
+const db=firebase.database()
+const params=new URLSearchParams(window.location.search)
+const isScreen=params.has('screen')
+const isAdmin=params.has('admin')
+if(isScreen){document.getElementById('view-screen').style.display='flex';initScreen()}
+else if(isAdmin){document.getElementById('view-admin').style.display='block';initAdmin()}
+else{document.getElementById('view-audience').style.display='flex';initAudience()}
+function initAudience(){
+  const input=document.getElementById('word-input')
+  input.addEventListener('input',()=>{document.getElementById('char-count').textContent=input.value.length})
+  input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendWord()}})
+  db.ref('activeSession').on('value',snap=>{const s=snap.val();if(s&&s.question)document.getElementById('audience-question').textContent=s.question})
+}
+function sendWord(){
+  const input=document.getElementById('word-input')
+  const text=input.value.trim()
+  if(!text)return
+  const btn=document.getElementById('btn-send')
+  btn.disabled=true;btn.textContent='Enviando...'
+  db.ref('activeSession').get().then(snap=>{
+    const sessionId=snap.val()?.id||'default'
+    return db.ref('responses/'+sessionId).push({text,ts:firebase.database.ServerValue.TIMESTAMP})
+  }).then(()=>{
+    document.getElementById('audience-form').style.display='none'
+    document.getElementById('audience-success').style.display='flex'
+  }).catch(()=>{
+    document.getElementById('error-msg').style.display='block'
+    document.getElementById('error-msg').textContent='Error al enviar. Intentá de nuevo.'
+    btn.disabled=false;btn.textContent='Enviar →'
+  })
+}
+const COLORS=['#00C2FF','#FF3CAC','#7B61FF','#00F0A0','#FFB800','#FF6B6B','#00CFFD','#F050F8']
+let currentRef=null,currentListener=null
+function initScreen(){
+  db.ref('activeSession').on('value',snap=>{
+    const s=snap.val()
+    if(s&&s.question)document.getElementById('screen-question').textContent=s.question
+    listenResponses(s?.id||'default')
+  })
+}
+function listenResponses(sessionId){
+  if(currentRef&&currentListener)currentRef.off('value',currentListener)
+  currentRef=db.ref('responses/'+sessionId)
+  currentListener=currentRef.on('value',snap=>{
+    const data=snap.val()
+    const words=data?Object.values(data).map(r=>r.text).filter(Boolean):[]
+    document.getElementById('screen-count').textContent=words.length
+    renderCloud(words)
+  })
+}
+function renderCloud(words){
+  const counted={}
+  words.forEach(w=>{const k=w.toLowerCase().trim();counted[k]=(counted[k]||0)+1})
+  const entries=Object.entries(counted).sort((a,b)=>b[1]-a[1])
+  const maxCount=entries[0]?.[1]||1
+  if(entries.length===0){document.getElementById('waiting').style.display='flex';document.getElementById('word-wrap').style.display='none';return}
+  document.getElementById('waiting').style.display='none'
+  const wrap=document.getElementById('word-wrap')
+  wrap.style.display='block';wrap.innerHTML=''
+  entries.forEach(([text,count],i)=>{
+    const size=Math.round(28+(count/maxCount)*72)
+    const color=COLORS[Math.abs(text.charCodeAt(0))%COLORS.length]
+    const span=document.createElement('span')
+    span.className='word-item';span.textContent=text
+    span.style.fontSize=size+'px';span.style.color=color
+    span.style.textShadow='0 0 30px '+color+'66'
+    wrap.appendChild(span)
+    setTimeout(()=>span.classList.add('visible'),i*80)
+  })
+}
+const SESSIONS=[{id:'apertura',label:'Apertura del evento',question:'¿Qué esperás llevarte de XChange LATAM?'},{id:'networking',label:'Networking / break',question:'¿Con quién querés conectar hoy?'},{id:'cierre',label:'Cierre',question:'¿Cuál es tu principal aprendizaje del día?'},{id:'custom',label:'Pregunta personalizada',question:''}]
+function initAdmin(){
+  const base=window.location.origin+window.location.pathname
+  document.getElementById('url-audience').textContent=base
+  document.getElementById('url-screen').textContent=base+'?screen'
+  const grid=document.getElementById('session-grid')
+  SESSIONS.forEach(s=>{
+    const card=document.createElement('div')
+    card.className='session-card';card.id='card-'+s.id
+    card.innerHTML=`<div class="session-top"><span class="session-label">${s.label}</span><span class="session-count" id="count-${s.id}">0 resp.</span></div>${s.id==='custom'?`<input class="custom-input" id="custom-q" placeholder="Escribí tu pregunta..." />`:`<p class="session-q">${s.question}</p>`}<div class="session-actions"><button class="btn-activate" id="btn-${s.id}" onclick="activateSession('${s.id}')">Activar</button><button class="btn-clear" onclick="clearSession('${s.id}')">Limpiar</button></div>`
+    grid.appendChild(card)
+    db.ref('responses/'+s.id).on('value',snap=>{const n=snap.val()?Object.keys(snap.val()).length:0;document.getElementById('count-'+s.id).textContent=n+' resp.'})
+  })
+  db.ref('activeSession').on('value',snap=>{
+    const s=snap.val()
+    SESSIONS.forEach(sess=>{
+      document.getElementById('card-'+sess.id).classList.toggle('active',s?.id===sess.id)
+      const btn=document.getElementById('btn-'+sess.id)
+      btn.textContent=s?.id===sess.id?'✓ Activa':'Activar'
+      btn.classList.toggle('active',s?.id===sess.id)
+    })
+    if(s){document.getElementById('status-bar').style.display='flex';document.getElementById('status-question').textContent=s.question}
+  })
+}
+function activateSession(id){
+  const sess=SESSIONS.find(s=>s.id===id)
+  const q=id==='custom'?(document.getElementById('custom-q')?.value||'Pregunta personalizada'):sess.question
+  db.ref('activeSession').set({id,question:q})
+}
+function clearSession(id){if(!confirm('¿Borrar todas las respuestas de esta sesión?'))return;db.ref('responses/'+id).remove()}
+function copyURL(suffix){const base=window.location.origin+window.location.pathname;navigator.clipboard.writeText(base+suffix);alert('URL copiada!')}
+</script>
+</body>
 </html>
